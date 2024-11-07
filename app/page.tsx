@@ -1,9 +1,20 @@
-'use client';
+"use client";
 
-import { trpc } from '@/utils/trpc';
+import { useEffect } from "react";
+import { trpc } from "@/utils/trpc";
 
 export default function Home() {
-  const hello = trpc.hello.greeting.useQuery({ name: 'tRPC' });
+  const hello = trpc.hello.greeting.useQuery({ name: "tRPC" });
+
+  const createTest = trpc.test.createTest.useMutation();
+
+  const handleCreateTest = () => {
+    createTest.mutate({ name: "test" });
+  };
+
+  useEffect(() => {
+    handleCreateTest();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
