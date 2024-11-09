@@ -1,31 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
-import { trpc } from "@/utils/trpc";
+import MovieNominations from "@/components/movie_nominations";
+import MovieAwards from "@/components/movie_awards";
+import MovieMostAwarded from "@/components/movie_most_awarded";
+import ProfessionalNoAward from "@/components/professional_no_award";
+import ActorMostAwarded from "@/components/actor_most_awarded";
+import MovieMostVoted from "@/components/movie_most_voted";
+import DirectorNominations from "@/components/director_nominations";
 
 export default function Home() {
-  const hello = trpc.hello.greeting.useQuery({ name: "tRPC" });
-
-  const createTest = trpc.test.createTest.useMutation();
-
-  const handleCreateTest = () => {
-    createTest.mutate({ name: "test" });
-  };
-
-  useEffect(() => {
-    handleCreateTest();
-  }, []);
-
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-4">Next.js + tRPC</h1>
-        {hello.isLoading ? (
-          <p>Loading...</p>
-        ) : (
-          <p className="text-lg">{hello.data?.greeting}</p>
-        )}
-      </div>
+    <div className="flex flex-col gap-8 bg-gradient-to-b from-gray-100 to-gray-200">
+      <MovieNominations />
+      <MovieAwards />
+      <MovieMostAwarded />
+      <ProfessionalNoAward />
+      <ActorMostAwarded />
+      <MovieMostVoted />
+      <DirectorNominations />
     </div>
   );
 }

@@ -17,3 +17,46 @@ model Test {
   id String @id @default(auto()) @map("_id") @db.ObjectId
   name String
 }
+
+model movies {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  title String
+  year Int
+  genre String
+  synopsis String
+  nominations NominationMovies[]
+  awardsWon Int
+}
+
+model professionals {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  firstName String
+  lastName String
+  dateOfBirth String
+  nominations NominationsProfessionals[]
+  awardsWon Int
+}
+
+model votes {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+  memberId String
+  votes Int
+  voteDate String
+  movie String
+}
+
+type NominationsProfessionals {
+  awardId String
+  category String
+  movie String
+  result String
+  year Int
+  role String
+}
+
+// New type for embedded nominations
+type NominationMovies {
+  categoryId String
+  result String
+  year Int
+}
