@@ -1,193 +1,238 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { trpc } from "@/utils/trpc";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { NominationMovies } from "@prisma/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MOVIE } from "@/supabase/schema";
+
+type Movie = {
+  id: string;
+  title: string;
+  year: number;
+  synopsis: string;
+  nominations: {
+    categoryId: string;
+    categoryName?: string;
+    result: string;
+    year: number;
+  }[];
+};
+
+type MongoMovie = {
+  id: string;
+  title: string;
+  year: number;
+  genre: string;
+  synopsis: string;
+  awardsWon: number;
+  nominations: {
+    categoryId: string;
+    result: string;
+    year: number;
+  }[];
+};
+
+type SqlMovie = typeof MOVIE.$inferSelect & {
+  CategoryName?: string;
+};
 
 const MovieNominations = () => {
-  const [startYear, setStartYear] = useState("2020");
-  const [endYear, setEndYear] = useState("2024");
-  const [startYearError, setStartYearError] = useState("");
-  const [endYearError, setEndYearError] = useState("");
-  const [shouldFetch, setShouldFetch] = useState(false);
-
-  const movies = trpc.mongo.getMoviesNominated.useQuery(
-    {
-      startYear: Number(startYear),
-      endYear: Number(endYear),
-    },
-    {
-      enabled: shouldFetch,
-    }
+  const [database, setDatabase] = useState<"mongodb" | "cassandra" | "sql">(
+    "mongodb"
   );
 
-  const handleYearChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-    isStart: boolean
-  ) => {
-    const value = e.target.value;
-    if (isStart) {
-      setStartYear(value);
-      setStartYearError(validateYear(value));
-    } else {
-      setEndYear(value);
-      setEndYearError(validateYear(value));
+  const mongoMovies = trpc.mongo.getMoviesNominated.useQuery();
+  const cassandraMovies = trpc.cassandra.get_movies_by_category.useQuery();
+  const sqlMovies =
+    trpc.sql.getMoviesNominatedInDifferentCategoriesLastThreeYears.useQuery();
+
+  const getMoviesForCurrentDB = () => {
+    switch (database) {
+      case "mongodb":
+        return mongoMovies.data
+          ? normalizeMovies(mongoMovies.data as MongoMovie[], "mongodb")
+          : [];
+      case "cassandra":
+        return cassandraMovies.data
+          ? normalizeMovies(
+              cassandraMovies.data as movies_by_category[],
+              "cassandra"
+            )
+          : [];
+      case "sql":
+        return sqlMovies.data
+          ? normalizeMovies(sqlMovies.data as SqlMovie[], "sql")
+          : [];
     }
   };
 
-  const validateYear = (year: string): string => {
-    const numYear = Number(year);
-    if (isNaN(numYear) || numYear < 1900 || numYear > 2024) {
-      return "Por favor, ingrese un año válido entre 1900 y 2024.";
+  const getCurrentError = () => {
+    switch (database) {
+      case "mongodb":
+        return mongoMovies.error;
+      case "cassandra":
+        return cassandraMovies.error;
+      case "sql":
+        return sqlMovies.error;
     }
-    return "";
   };
 
-  const handleSearch = () => {
-    const startYearValidation = validateYear(startYear);
-    const endYearValidation = validateYear(endYear);
+  const normalizeMovies = (
+    data: (movies_by_category | MongoMovie | SqlMovie)[],
+    dbType: "mongodb" | "cassandra" | "sql"
+  ): Movie[] => {
+    if (!Array.isArray(data)) return [];
 
-    setStartYearError(startYearValidation);
-    setEndYearError(endYearValidation);
+    // Handle SQL data
+    if (dbType === "sql") {
+      console.log("Normalizing SQL data:", data); // Debug log
 
-    if (!startYearValidation && !endYearValidation) {
-      if (Number(startYear) > Number(endYear)) {
-        setEndYearError("El año final no puede ser menor que el año inicial.");
-        return;
+      const movieMap = new Map<string, Movie>();
+
+      (data as SqlMovie[]).forEach((sqlMovie) => {
+        const movieId = sqlMovie.MovieID?.toString() || "";
+
+        if (!movieId) {
+          console.warn("Found SQL movie without ID:", sqlMovie);
+          return;
+        }
+
+        if (!movieMap.has(movieId)) {
+          movieMap.set(movieId, {
+            id: movieId,
+            title: sqlMovie.Title || "Unknown Title",
+            year: sqlMovie.Year || new Date().getFullYear(),
+            synopsis: sqlMovie.Synopsis || "",
+            nominations: [],
+          });
+        }
+
+        const movie = movieMap.get(movieId)!;
+        if (
+          sqlMovie.CategoryName &&
+          !movie.nominations.some((n) => n.categoryId === sqlMovie.CategoryName)
+        ) {
+          movie.nominations.push({
+            categoryId: sqlMovie.CategoryName,
+            categoryName: sqlMovie.CategoryName,
+            result: "Nominated",
+            year: sqlMovie.Year || new Date().getFullYear(),
+          });
+        }
+      });
+
+      const normalizedMovies = Array.from(movieMap.values());
+      console.log("Normalized SQL movies:", normalizedMovies); // Debug log
+      return normalizedMovies;
+    }
+
+    // Handle MongoDB and Cassandra cases
+    return data.map((movie) => {
+      if (dbType === "cassandra") {
+        const cassandraMovie = movie as movies_by_category;
+        return {
+          id: cassandraMovie.movie,
+          title: cassandraMovie.movie,
+          year: cassandraMovie.year,
+          synopsis: cassandraMovie.synopsis,
+          nominations: cassandraMovie.nominations.map((nom) => ({
+            categoryId: nom,
+            result: "Nominated",
+            year: cassandraMovie.year,
+          })),
+        };
+      } else {
+        const mongoMovie = movie as MongoMovie;
+        return {
+          id: mongoMovie.id,
+          title: mongoMovie.title,
+          year: mongoMovie.year,
+          synopsis: mongoMovie.synopsis,
+          nominations: mongoMovie.nominations.map((nom) => ({
+            categoryId: nom.categoryId,
+            categoryName: nom.categoryId,
+            result: nom.result,
+            year: nom.year,
+          })),
+        };
       }
-      setShouldFetch(true);
-    }
+    });
   };
-
-  useEffect(() => {
-    if (shouldFetch) {
-      movies.refetch();
-      setShouldFetch(false);
-    }
-  }, [shouldFetch, movies]);
 
   return (
-    <div className=" py-12 px-4">
-      <div className=" bg-white max-w-4xl mx-auto">
-        <div className=" p-8 rounded-xl shadow-lg">
+    <div className="py-12 px-4 bg-gray-100">
+      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="p-8">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
             Películas Nominadas en Múltiples Categorías
           </h1>
 
-          {/* Year inputs */}
-          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label
-                htmlFor="startYearInput"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Año inicial:
-              </label>
-              <Input
-                id="startYearInput"
-                type="text"
-                value={startYear}
-                onChange={(e) => handleYearChange(e, true)}
-                className={startYearError ? "border-red-500" : ""}
-              />
-              {startYearError && (
-                <p className="mt-1 text-sm text-red-600">{startYearError}</p>
-              )}
-            </div>
-            <div>
-              <label
-                htmlFor="endYearInput"
-                className="block text-sm font-medium text-gray-700 mb-2"
-              >
-                Año final:
-              </label>
-              <Input
-                id="endYearInput"
-                type="text"
-                value={endYear}
-                onChange={(e) => handleYearChange(e, false)}
-                className={endYearError ? "border-red-500" : ""}
-              />
-              {endYearError && (
-                <p className="mt-1 text-sm text-red-600">{endYearError}</p>
-              )}
-            </div>
-          </div>
+          <Tabs
+            defaultValue="mongodb"
+            onValueChange={(value) =>
+              setDatabase(value as "mongodb" | "cassandra" | "sql")
+            }
+            className="mb-6"
+          >
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="mongodb">MongoDB</TabsTrigger>
+              <TabsTrigger value="cassandra">Cassandra</TabsTrigger>
+              <TabsTrigger value="sql">SQL</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-          {/* Search button */}
-          <div className="mb-8">
-            <Button
-              onClick={handleSearch}
-              className="w-full"
-              disabled={movies.isFetching}
-            >
-              {movies.isFetching ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Cargando...
-                </>
-              ) : (
-                "Buscar"
-              )}
-            </Button>
-          </div>
-
-          {/* Loading state */}
-          {movies.isFetching && (
-            <div className="text-center text-gray-600">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-              <p className="mt-2">Cargando películas...</p>
-            </div>
-          )}
-
-          {/* Error state */}
-          {movies.error && (
-            <div className="text-center text-red-600">
+          {getCurrentError() && (
+            <div className="text-center text-red-600 my-8">
               Error al cargar las películas
             </div>
           )}
 
-          {/* Movies grid */}
-          {movies.data && (
+          {getMoviesForCurrentDB().length > 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+              className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
             >
-              {movies.data.map((movie, index) => (
+              {getMoviesForCurrentDB().map((movie, index) => (
                 <motion.div
                   key={movie.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300"
+                  className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
                 >
-                  <div className="p-5">
+                  <div className="p-6">
                     <motion.h3
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.2 }}
-                      className="text-xl font-semibold text-gray-800 mb-2 truncate"
+                      className="text-2xl font-bold text-gray-900 mb-2"
                     >
                       {movie.title}
                     </motion.h3>
-                    <motion.p
+                    <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.3 }}
-                      className="text-sm text-gray-600 mb-3"
+                      className="flex items-center gap-2 mb-4"
                     >
-                      Año: {movie.year}
-                    </motion.p>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+                        {movie.year}
+                      </span>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-gray-600">
+                        {movie.nominations.length} nominaciones
+                      </span>
+                    </motion.div>
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.4 }}
-                      className="text-gray-700 text-sm mb-4 line-clamp-3"
+                      className="text-gray-700 mb-4 line-clamp-3"
                     >
                       {movie.synopsis}
                     </motion.p>
@@ -195,13 +240,14 @@ const MovieNominations = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.3, delay: 0.5 }}
+                      className="space-y-3"
                     >
-                      <p className="text-xs font-medium text-gray-600 uppercase tracking-wider mb-2">
-                        Categorías Nominadas:
+                      <p className="text-sm font-semibold text-gray-900 uppercase tracking-wider">
+                        Nominaciones:
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {movie.nominations.map((nomination, index) => (
-                          <motion.span
+                          <motion.div
                             key={index}
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -209,10 +255,15 @@ const MovieNominations = () => {
                               duration: 0.2,
                               delay: 0.6 + index * 0.1,
                             }}
-                            className="inline-block px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded"
+                            className="group relative"
                           >
-                            {nomination.categoryId}
-                          </motion.span>
+                            <span className="inline-block px-3 py-1.5 text-sm font-medium bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors duration-200">
+                              {nomination.categoryName || nomination.categoryId}
+                            </span>
+                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                              {nomination.year} - {nomination.result}
+                            </div>
+                          </motion.div>
                         ))}
                       </div>
                     </motion.div>
@@ -220,10 +271,7 @@ const MovieNominations = () => {
                 </motion.div>
               ))}
             </motion.div>
-          )}
-
-          {/* Empty state */}
-          {movies.data?.length === 0 && !movies.isFetching && (
+          ) : (
             <div className="text-center text-gray-600 mt-4">
               No se encontraron películas
             </div>

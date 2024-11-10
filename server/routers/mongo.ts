@@ -1,34 +1,34 @@
 import { router, publicProcedure } from "../trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { MOVIE } from "@/supabase/schema";
 
 export const mongoRouter = router({
-  //¿Cuántas películas han sido nominadas en diferentes categorías en los últimos años?
-  getMoviesNominated: publicProcedure
-    .input(
-      z.object({
-        startYear: z.number(),
-        endYear: z.number(),
-      })
-    )
-    .query(async ({ ctx, input }) => {
-      try {
-        const { startYear, endYear } = input;
-        const movies = await ctx.prisma.movies.findMany({
-          where: {
-            year: { gte: startYear, lte: endYear },
+  //¿Cuántas películas han sido nominadas en diferentes categorías en los últimos n años?
+  getMoviesNominated: publicProcedure.query(async ({ ctx, input }) => {
+    try {
+      const movies = await ctx.prisma.movies.findMany({
+        where: {
+          nominations: {
+            isEmpty: false,
           },
-        });
-        return movies.filter((movie) => movie.nominations.length > 1);
-      } catch (error) {
-        console.error(error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Error al obtener las películas nominadas",
-        });
-      }
-    }),
+        },
+        orderBy: {
+          year: "desc",
+        },
+        take: 3,
+      });
 
+      return movies.filter((movie) => movie.nominations.length > 0);
+    } catch (error) {
+      console.error(error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Error al obtener las películas nominadas",
+      });
+    }
+  }),
+  //¿Qué películas han recibido más de 5 nominaciones Y han ganado al menos 3 premios?
   getMoviesNominatedAndAwardsWon: publicProcedure.query(async ({ ctx }) => {
     try {
       const movies = await ctx.prisma.movies.findMany({
@@ -75,10 +75,6 @@ export const mongoRouter = router({
         where: {
           awardsWon: 0,
         },
-      });
-
-      actors.map((actor) => {
-        console.log(actor.nominations.length);
       });
 
       // Double check nominations length in case Prisma query wasn't enough

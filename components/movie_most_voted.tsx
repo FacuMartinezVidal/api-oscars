@@ -3,9 +3,18 @@
 import { trpc } from "@/utils/trpc";
 import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { motion } from "framer-motion";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface MovieData {
+  movie: string;
+  voteDate: string;
+  votes: number | null;
+}
 
 const MovieMostVoted = () => {
-  const movie = trpc.mongo.getMostVotedMovie.useQuery();
+  const mongoMovie = trpc.mongo.getMostVotedMovie.useQuery();
+  const cassandraMovie = trpc.cassandra.get_movies_by_votes.useQuery();
+  const sqlMovie = trpc.sql.getMoviesMostVotedAndLeastVoted.useQuery();
 
   return (
     <div className="py-12 px-4">
@@ -15,70 +24,130 @@ const MovieMostVoted = () => {
             Películas Más y Menos Votadas
           </h1>
 
-          {/* Loading state */}
-          {movie.isFetching && (
-            <div className="text-center text-gray-600">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-              <p className="mt-2">Cargando películas...</p>
-            </div>
-          )}
+          <Tabs defaultValue="mongodb" className="mb-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="mongodb">MongoDB</TabsTrigger>
+              <TabsTrigger value="cassandra">Cassandra</TabsTrigger>
+              <TabsTrigger value="sql">SQL</TabsTrigger>
+            </TabsList>
 
-          {/* Error state */}
-          {movie.error && (
-            <div className="text-center text-red-600">
-              Error al cargar las películas
-            </div>
-          )}
+            <TabsContent value="mongodb">
+              {mongoMovie.error && <ErrorState />}
+              {mongoMovie.data && (
+                <MovieCards
+                  mostVoted={{
+                    movie: mongoMovie.data.mostVoted.movie,
+                    voteDate: new Date().toISOString(),
+                    votes: mongoMovie.data.mostVoted.votes,
+                  }}
+                  leastVoted={{
+                    movie: mongoMovie.data.leastVoted.movie,
+                    voteDate: new Date().toISOString(),
+                    votes: mongoMovie.data.leastVoted.votes,
+                  }}
+                />
+              )}
+            </TabsContent>
 
-          {/* Movie cards */}
-          {movie.data && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="space-y-8"
-            >
-              {/* Most voted movie */}
-              <MovieCard
-                title="Película Más Votada"
-                movie={{
-                  ...movie.data.mostVoted,
-                  voteDate: new Date().toISOString(), // Placeholder date
-                }}
-                icon={<ThumbsUp className="h-12 w-12 text-teal-500" />}
-                gradientColors="from-teal-50 to-cyan-50"
-                borderColor="border-teal-200"
-                voteColor="text-teal-600"
-                bgColor="bg-teal-100"
-              />
+            <TabsContent value="cassandra">
+              {cassandraMovie.error && <ErrorState />}
+              {cassandraMovie.data && (
+                <MovieCards
+                  mostVoted={{
+                    movie:
+                      cassandraMovie.data.movies_most_voted[0]?.movie_name ||
+                      "",
+                    voteDate: new Date().toISOString(),
+                    votes: cassandraMovie.data.movies_most_voted[0]?.votes || 0,
+                  }}
+                  leastVoted={{
+                    movie:
+                      cassandraMovie.data.movies_least_voted[0]?.movie_name ||
+                      "",
+                    voteDate: new Date().toISOString(),
+                    votes:
+                      cassandraMovie.data.movies_least_voted[0]?.votes || 0,
+                  }}
+                />
+              )}
+            </TabsContent>
 
-              {/* Least voted movie */}
-              <MovieCard
-                title="Película Menos Votada"
-                movie={{
-                  ...movie.data.leastVoted,
-                  voteDate: new Date().toISOString(), // Placeholder date
-                }}
-                icon={<ThumbsDown className="h-12 w-12 text-red-500" />}
-                gradientColors="from-red-50 to-pink-50"
-                borderColor="border-red-200"
-                voteColor="text-red-600"
-                bgColor="bg-red-100"
-              />
-            </motion.div>
-          )}
+            <TabsContent value="sql">
+              {sqlMovie.error && <ErrorState />}
+              {sqlMovie.data && (
+                <MovieCards
+                  mostVoted={{
+                    movie: sqlMovie.data.mostVoted[0]?.Title || "",
+                    voteDate: new Date().toISOString(),
+                    votes: sqlMovie.data.mostVoted[0]?.TotalVotes || 0,
+                  }}
+                  leastVoted={{
+                    movie: sqlMovie.data.leastVoted[0]?.Title || "",
+                    voteDate: new Date().toISOString(),
+                    votes: sqlMovie.data.leastVoted[0]?.TotalVotes || 0,
+                  }}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
 
           {/* Empty state */}
-          {!movie.data && !movie.isFetching && !movie.error && (
-            <div className="text-center text-gray-600 mt-4">
-              No se encontró información de las películas
-            </div>
-          )}
+          {!mongoMovie.data &&
+            !mongoMovie.isFetching &&
+            !mongoMovie.error &&
+            !cassandraMovie.data &&
+            !cassandraMovie.isFetching &&
+            !cassandraMovie.error &&
+            !sqlMovie.data &&
+            !sqlMovie.isFetching &&
+            !sqlMovie.error && (
+              <div className="text-center text-gray-600 mt-4">
+                No se encontró información de las películas
+              </div>
+            )}
         </div>
       </div>
     </div>
   );
 };
+
+const ErrorState = () => (
+  <div className="text-center text-red-600">Error al cargar las películas</div>
+);
+
+const MovieCards = ({
+  mostVoted,
+  leastVoted,
+}: {
+  mostVoted: MovieData;
+  leastVoted: MovieData;
+}) => (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.5 }}
+    className="space-y-8"
+  >
+    <MovieCard
+      title="Película Más Votada"
+      movie={mostVoted}
+      icon={<ThumbsUp className="h-12 w-12 text-teal-500" />}
+      gradientColors="from-teal-50 to-cyan-50"
+      borderColor="border-teal-200"
+      voteColor="text-teal-600"
+      bgColor="bg-teal-100"
+    />
+    <MovieCard
+      title="Película Menos Votada"
+      movie={leastVoted}
+      icon={<ThumbsDown className="h-12 w-12 text-red-500" />}
+      gradientColors="from-red-50 to-pink-50"
+      borderColor="border-red-200"
+      voteColor="text-red-600"
+      bgColor="bg-red-100"
+    />
+  </motion.div>
+);
 
 const MovieCard = ({
   title,
