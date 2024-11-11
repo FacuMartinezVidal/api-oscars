@@ -4,18 +4,40 @@ import { trpc } from "@/utils/trpc";
 import { Loader2, Trophy, Star, Film } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ActorMostAwarded = () => {
   const mongoActor = trpc.mongo.getMostAwardedActor.useQuery();
   const cassandraActor = trpc.cassandra.get_proffesional_by_awards.useQuery();
   const sqlActor = trpc.sql.getMostAwardedActorWithNominations.useQuery();
 
+  const renderSkeleton = () => (
+    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg overflow-hidden shadow-lg border border-purple-200 p-8">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <Skeleton className="h-12 w-32 rounded-full" />
+      </div>
+      <Skeleton className="h-6 w-48 mb-4" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[...Array(6)].map((_, index) => (
+          <Skeleton key={index} className="h-24 w-full rounded-lg" />
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white p-8 rounded-xl shadow-lg">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-            Actor Más Premiado en la Historia
+            Caso de uso N°2
           </h1>
 
           <Tabs defaultValue="mongo" className="mb-6">
@@ -26,6 +48,7 @@ const ActorMostAwarded = () => {
             </TabsList>
 
             <TabsContent value="mongo">
+              {mongoActor.isLoading && renderSkeleton()}
               {mongoActor.error && (
                 <div className="text-center text-red-600">
                   Error al cargar la información
@@ -143,6 +166,7 @@ const ActorMostAwarded = () => {
             </TabsContent>
 
             <TabsContent value="cassandra">
+              {cassandraActor.isLoading && renderSkeleton()}
               {cassandraActor.error && (
                 <div className="text-center text-red-600">
                   Error al cargar la información
@@ -242,6 +266,7 @@ const ActorMostAwarded = () => {
             </TabsContent>
 
             <TabsContent value="sql">
+              {sqlActor.isLoading && renderSkeleton()}
               {sqlActor.error && (
                 <div className="text-center text-red-600">
                   Error al cargar la información

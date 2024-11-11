@@ -4,6 +4,7 @@ import { trpc } from "@/utils/trpc";
 import { Loader2, ThumbsUp, ThumbsDown } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface MovieData {
   movie: string;
@@ -16,12 +17,35 @@ const MovieMostVoted = () => {
   const cassandraMovie = trpc.cassandra.get_movies_by_votes.useQuery();
   const sqlMovie = trpc.sql.getMoviesMostVotedAndLeastVoted.useQuery();
 
+  const renderSkeletons = () => (
+    <div className="space-y-8">
+      {[...Array(2)].map((_, index) => (
+        <div
+          key={index}
+          className="bg-white rounded-lg overflow-hidden shadow-lg border border-gray-200 p-8"
+        >
+          <Skeleton className="h-8 w-48 mb-4" />
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div>
+                <Skeleton className="h-8 w-48 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </div>
+            </div>
+            <Skeleton className="h-12 w-32 rounded-full" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white p-8 rounded-xl shadow-lg">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-            Películas Más y Menos Votadas
+            Caso de uso N°7
           </h1>
 
           <Tabs defaultValue="mongodb" className="mb-6">
@@ -32,6 +56,7 @@ const MovieMostVoted = () => {
             </TabsList>
 
             <TabsContent value="mongodb">
+              {mongoMovie.isLoading && renderSkeletons()}
               {mongoMovie.error && <ErrorState />}
               {mongoMovie.data && (
                 <MovieCards
@@ -50,6 +75,7 @@ const MovieMostVoted = () => {
             </TabsContent>
 
             <TabsContent value="cassandra">
+              {cassandraMovie.isLoading && renderSkeletons()}
               {cassandraMovie.error && <ErrorState />}
               {cassandraMovie.data && (
                 <MovieCards
@@ -73,6 +99,7 @@ const MovieMostVoted = () => {
             </TabsContent>
 
             <TabsContent value="sql">
+              {sqlMovie.isLoading && renderSkeletons()}
               {sqlMovie.error && <ErrorState />}
               {sqlMovie.data && (
                 <MovieCards

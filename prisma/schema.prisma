@@ -19,7 +19,7 @@ model Test {
 }
 
 model movies {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id  @map("_id") 
   title String
   year Int
   genre String
@@ -29,7 +29,7 @@ model movies {
 }
 
 model professionals {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id  @map("_id") 
   firstName String
   lastName String
   dateOfBirth String
@@ -38,7 +38,7 @@ model professionals {
 }
 
 model votes {
-  id String @id @default(auto()) @map("_id") @db.ObjectId
+  id String @id  @map("_id") 
   memberId String
   votes Int
   voteDate String

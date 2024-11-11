@@ -4,6 +4,7 @@ import { trpc } from "@/utils/trpc";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MovieAwards = () => {
   const mongoMovies = trpc.mongo.getMoviesNominatedAndAwardsWon.useQuery();
@@ -132,12 +133,31 @@ const MovieAwards = () => {
     </motion.div>
   );
 
+  const renderSkeletons = () => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      {[...Array(6)].map((_, index) => (
+        <div
+          key={index}
+          className="bg-white rounded-lg overflow-hidden shadow-md p-5"
+        >
+          <Skeleton className="h-6 w-3/4 mb-2" />
+          <Skeleton className="h-4 w-1/2 mb-3" />
+          <Skeleton className="h-16 w-full mb-4" />
+          <div className="flex gap-2">
+            <Skeleton className="h-6 w-1/3" />
+            <Skeleton className="h-6 w-1/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white p-8 rounded-xl shadow-lg">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-            Películas Premiadas con Múltiples Nominaciones
+            Caso de uso N°5
           </h1>
 
           <Tabs defaultValue="mongodb" className="w-full">
@@ -148,6 +168,7 @@ const MovieAwards = () => {
             </TabsList>
 
             <TabsContent value="mongodb">
+              {mongoMovies.isLoading && renderSkeletons()}
               {mongoMovies.error && (
                 <div className="text-center text-red-600">
                   Error al cargar las películas
@@ -157,6 +178,7 @@ const MovieAwards = () => {
             </TabsContent>
 
             <TabsContent value="cassandra">
+              {cassandraMovies.isLoading && renderSkeletons()}
               {cassandraMovies.error && (
                 <div className="text-center text-red-600">
                   Error al cargar las películas
@@ -167,6 +189,7 @@ const MovieAwards = () => {
             </TabsContent>
 
             <TabsContent value="sql">
+              {sqlMovies.isLoading && renderSkeletons()}
               {sqlMovies.error && (
                 <div className="text-center text-red-600">
                   Error al cargar las películas

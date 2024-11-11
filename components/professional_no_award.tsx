@@ -4,6 +4,7 @@ import { trpc } from "@/utils/trpc";
 import { Loader2, User } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const ProfessionalNoAward = () => {
   const mongoProfessionals =
@@ -12,12 +13,34 @@ const ProfessionalNoAward = () => {
   const sqlProfessionals =
     trpc.sql.getActorsNominatedMoreThanThreeTimesAndNeverWonAnAward.useQuery();
 
+  const renderSkeletons = () => (
+    <div className="space-y-6">
+      {[...Array(3)].map((_, index) => (
+        <div
+          key={index}
+          className="bg-white rounded-lg overflow-hidden shadow-md p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-6 w-1/4" />
+          </div>
+          <Skeleton className="h-4 w-1/2 mb-4" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/6" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   return (
     <div className="py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="bg-white p-8 rounded-xl shadow-lg">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-            Profesionales Más Nominados Sin Premio
+            Caso de uso N°6
           </h1>
 
           <Tabs defaultValue="mongodb" className="mb-6">
@@ -28,6 +51,7 @@ const ProfessionalNoAward = () => {
             </TabsList>
 
             <TabsContent value="mongodb">
+              {mongoProfessionals.isLoading && renderSkeletons()}
               {mongoProfessionals.error && (
                 <div className="text-center text-red-600">
                   Error al cargar los profesionales
@@ -132,8 +156,7 @@ const ProfessionalNoAward = () => {
             </TabsContent>
 
             <TabsContent value="cassandra">
-              {/* Cassandra Content */}
-
+              {cassandraProfessionals.isLoading && renderSkeletons()}
               {cassandraProfessionals.error && (
                 <div className="text-center text-red-600">
                   Error al cargar los profesionales
@@ -186,6 +209,7 @@ const ProfessionalNoAward = () => {
             </TabsContent>
 
             <TabsContent value="sql">
+              {sqlProfessionals.isLoading && renderSkeletons()}
               {sqlProfessionals.error && (
                 <div className="text-center text-red-600">
                   Error al cargar los profesionales

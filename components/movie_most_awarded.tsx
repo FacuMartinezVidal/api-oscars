@@ -4,6 +4,7 @@ import { trpc } from "@/utils/trpc";
 import { Loader2, Trophy } from "lucide-react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const MovieMostAwarded = () => {
   const cassandraMovies = trpc.cassandra.get_movies_most_awarded.useQuery();
@@ -51,6 +52,34 @@ const MovieMostAwarded = () => {
         };
       }
     });
+
+    if (isLoading) {
+      return (
+        <div className="space-y-6">
+          {[...Array(3)].map((_, index) => (
+            <div
+              key={index}
+              className="bg-white rounded-lg overflow-hidden shadow-md p-6"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <Skeleton className="h-8 w-2/3" />
+                <Skeleton className="h-6 w-1/4" />
+              </div>
+              <Skeleton className="h-4 w-1/4 mb-4" />
+              <Skeleton className="h-20 w-full mb-4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-1/2" />
+                <div className="flex flex-wrap gap-2">
+                  {[...Array(3)].map((_, i) => (
+                    <Skeleton key={i} className="h-6 w-24 rounded-full" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
 
     return (
       <>
@@ -176,7 +205,7 @@ const MovieMostAwarded = () => {
       <div className="max-w-4xl mx-auto">
         <div className="bg-white p-8 rounded-xl shadow-lg">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-            Películas Más Premiadas en la Historia
+            Caso de uso N°3
           </h1>
 
           <Tabs defaultValue="mongodb" className="w-full">

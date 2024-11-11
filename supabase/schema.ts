@@ -13,7 +13,6 @@ export const MOVIE = pgTable("MOVIE", {
   Year: integer("Year"),
   Genre: varchar("Genre", { length: 50 }),
   Synopsis: text("Synopsis"),
-  Nominations: integer("Nominations"),
 });
 
 export const CATEGORY = pgTable("CATEGORY", {

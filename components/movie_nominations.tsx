@@ -2,11 +2,10 @@
 
 import { useState } from "react";
 import { trpc } from "@/utils/trpc";
-import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { NominationMovies } from "@prisma/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MOVIE } from "@/supabase/schema";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Movie = {
   id: string;
@@ -22,6 +21,7 @@ type Movie = {
 };
 
 type MongoMovie = {
+  _id?: string;
   id: string;
   title: string;
   year: number;
@@ -77,6 +77,17 @@ const MovieNominations = () => {
         return cassandraMovies.error;
       case "sql":
         return sqlMovies.error;
+    }
+  };
+
+  const isLoading = () => {
+    switch (database) {
+      case "mongodb":
+        return mongoMovies.isLoading;
+      case "cassandra":
+        return cassandraMovies.isLoading;
+      case "sql":
+        return sqlMovies.isLoading;
     }
   };
 
@@ -147,7 +158,7 @@ const MovieNominations = () => {
       } else {
         const mongoMovie = movie as MongoMovie;
         return {
-          id: mongoMovie.id,
+          id: mongoMovie._id || mongoMovie.id,
           title: mongoMovie.title,
           year: mongoMovie.year,
           synopsis: mongoMovie.synopsis,
@@ -162,12 +173,31 @@ const MovieNominations = () => {
     });
   };
 
+  const MovieSkeleton = () => (
+    <div className="bg-white rounded-lg overflow-hidden shadow-md p-6 space-y-4">
+      <Skeleton className="h-8 w-3/4" />
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-16" />
+        <Skeleton className="h-6 w-24" />
+      </div>
+      <Skeleton className="h-20 w-full" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-1/4" />
+        <div className="flex flex-wrap gap-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-8 w-24" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="py-12 px-4 bg-gray-100">
+    <div className="py-12 px-4 ">
       <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="p-8">
           <h1 className="text-3xl font-bold mb-6 text-gray-800 text-center">
-            Películas Nominadas en Múltiples Categorías
+            Caso de uso N°1
           </h1>
 
           <Tabs
@@ -190,20 +220,21 @@ const MovieNominations = () => {
             </div>
           )}
 
-          {getMoviesForCurrentDB().length > 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5 }}
-              className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
-            >
+          {isLoading() ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, index) => (
+                <MovieSkeleton key={index} />
+              ))}
+            </div>
+          ) : getMoviesForCurrentDB().length > 0 ? (
+            <motion.div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               {getMoviesForCurrentDB().map((movie, index) => (
                 <motion.div
                   key={movie.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
+                  className="relative bg-white rounded-lg overflow-hidden shadow-md hover:shadow-xl transition-all duration-300"
                 >
                   <div className="p-6">
                     <motion.h3
@@ -214,6 +245,7 @@ const MovieNominations = () => {
                     >
                       {movie.title}
                     </motion.h3>
+
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -228,6 +260,7 @@ const MovieNominations = () => {
                         {movie.nominations.length} nominaciones
                       </span>
                     </motion.div>
+
                     <motion.p
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
@@ -236,6 +269,7 @@ const MovieNominations = () => {
                     >
                       {movie.synopsis}
                     </motion.p>
+
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
